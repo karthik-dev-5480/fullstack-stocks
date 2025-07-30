@@ -1,0 +1,5 @@
+package com.stocks.service;
+
+public class CustomUserDetailsService {
+
+}

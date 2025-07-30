@@ -1,0 +1,5 @@
+package com.stocks.config;
+
+public class SecurityConfig {
+
+}

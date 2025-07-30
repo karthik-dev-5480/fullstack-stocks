@@ -1,0 +1,5 @@
+package com.stocks.repository;
+
+public class UserRepository {
+
+}
