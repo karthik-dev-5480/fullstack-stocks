@@ -4,6 +4,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.web.bind.annotation.*;
 
 import com.stocks.dto.AuthRequest;
@@ -13,6 +15,7 @@ import com.stocks.model.User;
 import com.stocks.service.AuthService;
 import com.stocks.service.RegisterService;
 import com.stocks.service.TokenBlacklistService;
+import com.stocks.util.JwtUtil;
 
 
 @RestController
@@ -21,6 +24,12 @@ public class AuthController {
 
     @Autowired
     private AuthService authService;
+    
+    @Autowired
+    private JwtUtil jwtUtil;
+    
+    @Autowired
+    private UserDetailsService userDetailsService;
 
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@RequestBody AuthRequest request) {
@@ -54,5 +63,29 @@ public class AuthController {
         return ResponseEntity.ok()
             .header(HttpHeaders.SET_COOKIE, deleteCookie.toString())
             .body("Logged out successfully.");
+    }
+    
+    @GetMapping("/validate")
+    public ResponseEntity<String> validateToken(@CookieValue(value = "jwt", required = false) String token) {
+        if (token == null || token.isEmpty()) {
+            return ResponseEntity.status(401).body("No token found. User is not logged in.");
+        }
+
+        if (tokenBlacklistService.isTokenBlacklisted(token)) {
+            return ResponseEntity.status(401).body("Token is blacklisted. Please log in again.");
+        }
+
+        try {
+            String username = jwtUtil.extractUsername(token);
+            UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+
+            if (jwtUtil.validateToken(token, userDetails)) {
+                return ResponseEntity.ok("Token is valid. User is logged in as: " + username);
+            } else {
+                return ResponseEntity.status(401).body("Token is expired or invalid.");
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(401).body("Invalid token: " + e.getMessage());
+        }
     }
 }

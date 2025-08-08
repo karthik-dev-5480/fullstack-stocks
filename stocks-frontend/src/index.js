@@ -6,9 +6,13 @@ import reportWebVitals from './reportWebVitals';
 import { Experimental_CssVarsProvider as CssVarsProvider } from '@mui/material/styles';
 import AppAppBar from './components/Landing/components/AppAppBar';
 import AppTheme from './components/shared-theme/AppTheme';
+import { AuthProvider } from "./AuthContext";
+
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
-<React.StrictMode>
+
+  <AuthProvider>
+  <React.StrictMode>
     <CssVarsProvider defaultMode="system">
      
       <AppTheme>
@@ -20,6 +24,8 @@ root.render(
     </AppTheme>
     </CssVarsProvider>
   </React.StrictMode>
+</AuthProvider>
+
 );
 
 // If you want to start measuring performance in your app, pass a function
