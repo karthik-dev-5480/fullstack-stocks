@@ -47,47 +47,50 @@ public class JwtFilter extends OncePerRequestFilter {
                                     FilterChain filterChain)
             throws ServletException, IOException {
 
+        // 1️⃣ Try cookie first
         String token = extractJwtFromCookies(request);
-        String username = null;
 
-        if (token != null) {
-            try {
-                username = jwtUtil.extractUsername(token);
-            } catch (Exception e) {
-                logger.warn("Invalid JWT Token: " + e.getMessage());
+        // 2️⃣ If not found in cookie, try Authorization header
+        if (token == null) {
+            String authHeader = request.getHeader("Authorization");
+            if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                token = authHeader.substring(7);
             }
         }
 
-        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-
-            if (jwtUtil.validateToken(token, userDetails)) {
-                UsernamePasswordAuthenticationToken authToken =
-                        new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-
-                SecurityContextHolder.getContext().setAuthentication(authToken);
-            }
-        }
-        
-        String authHeader = request.getHeader("Authorization");
-    
-
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            token = authHeader.substring(7);
+        // 3️⃣ If token still null, skip authentication
+        if (token == null) {
+            logger.warn("JWT token is missing in both cookies and Authorization header.");
+            filterChain.doFilter(request, response);
+            return;
         }
 
-        // Only check if token is not null
-        if (token != null && tokenBlacklistService.isTokenBlacklisted(token)) {
-            // Handle blacklisted token case
-        }
-        
+        // 4️⃣ Check blacklist
         if (tokenBlacklistService.isTokenBlacklisted(token)) {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             return;
         }
-        if (token == null) {
-            logger.warn("JWT token is missing in Authorization header.");
+
+        // 5️⃣ Validate token & set authentication
+        String username = null;
+        try {
+            username = jwtUtil.extractUsername(token);
+        } catch (Exception e) {
+            logger.warn("Invalid JWT Token: " + e.getMessage());
         }
+
+        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+            UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+            if (jwtUtil.validateToken(token, userDetails)) {
+                UsernamePasswordAuthenticationToken authToken =
+                        new UsernamePasswordAuthenticationToken(
+                                userDetails, null, userDetails.getAuthorities()
+                        );
+                SecurityContextHolder.getContext().setAuthentication(authToken);
+            }
+        }
+
         filterChain.doFilter(request, response);
     }
+
 }

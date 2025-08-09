@@ -1,77 +1,113 @@
-// src/components/AppAppBar.js
-import * as React from 'react';
-import { styled, alpha } from '@mui/material/styles';
-import Box from '@mui/material/Box';
-import AppBar from '@mui/material/AppBar';
-import Toolbar from '@mui/material/Toolbar';
-import Button from '@mui/material/Button';
-import Container from '@mui/material/Container';
-import IconButton from '@mui/material/IconButton';
-import Drawer from '@mui/material/Drawer';
-import MenuItem from '@mui/material/MenuItem';
-import MenuIcon from '@mui/icons-material/Menu';
-import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
-import Divider from '@mui/material/Divider';
-import ColorModeIconDropdown from './ColorModeIconDropdown';
-import Sitemark from './SitemarkIcon';
-import { AuthContext } from '../AuthContext';
+import * as React from "react";
+import { styled, alpha } from "@mui/material/styles";
+import Box from "@mui/material/Box";
+import AppBar from "@mui/material/AppBar";
+import Toolbar from "@mui/material/Toolbar";
+import Button from "@mui/material/Button";
+import IconButton from "@mui/material/IconButton";
+import Container from "@mui/material/Container";
+import Divider from "@mui/material/Divider";
+import MenuItem from "@mui/material/MenuItem";
+import Drawer from "@mui/material/Drawer";
+import MenuIcon from "@mui/icons-material/Menu";
+import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
+import ColorModeIconDropdown from "./ColorModeIconDropdown";
+import Sitemark from "./SitemarkIcon";
+import { AuthContext } from "../../../AuthContext";
+import { useNavigate } from "react-router-dom";
+import { useContext } from "react";
 
 const StyledToolbar = styled(Toolbar)(({ theme }) => ({
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
   flexShrink: 0,
   borderRadius: `calc(${theme.shape.borderRadius}px + 8px)`,
-  backdropFilter: 'blur(24px)',
-  border: '1px solid',
+  backdropFilter: "blur(24px)",
+  border: "1px solid",
   borderColor: (theme.vars || theme).palette.divider,
   backgroundColor: theme.vars
     ? `rgba(${theme.vars.palette.background.defaultChannel} / 0.4)`
     : alpha(theme.palette.background.default, 0.4),
   boxShadow: (theme.vars || theme).shadows[1],
-  padding: '8px 12px',
+  padding: "8px 12px",
 }));
 
 export default function AppAppBar() {
   const [open, setOpen] = React.useState(false);
-  const { isAuthenticated, logout } = React.useContext(AuthContext);
+  const [loading, setLoading] = React.useState(false);
+  const navigate = useNavigate();
+  const { isAuthenticated, setIsAuthenticated, refreshAuth } = useContext(AuthContext);
 
-  const toggleDrawer = (newOpen) => () => setOpen(newOpen);
-
+  const toggleDrawer = (newOpen) => () => {
+    setOpen(newOpen);
+  };
+  const handleLogout = async () => {
+    const token = localStorage.getItem("jwt");
+    try {
+      const response = await fetch("http://localhost:8080/auth/logout", {
+        method: "POST",
+        credentials: "include", // 🔹 sends JWT cookie to server
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+  
+      if (response.ok) {
+        localStorage.removeItem("jwt"); // Optional if you stop using localStorage
+        await refreshAuth();
+        navigate("/");
+      } else {
+        alert("Logout failed");
+      }
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+  };
   return (
-    <AppBar position="fixed" enableColorOnDark sx={{ boxShadow: 0, bgcolor: 'transparent', backgroundImage: 'none', mt: 'calc(var(--template-frame-height, 0px) + 28px)' }}>
+    <AppBar
+      position="fixed"
+      enableColorOnDark
+      sx={{
+        boxShadow: 0,
+        bgcolor: "transparent",
+        backgroundImage: "none",
+        mt: "calc(var(--template-frame-height, 0px) + 28px)",
+      }}
+    >
       <Container maxWidth="lg">
         <StyledToolbar variant="dense" disableGutters>
-          <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', px: 0 }}>
+          <Box sx={{ flexGrow: 1, display: "flex", alignItems: "center", px: 0 }}>
             <Sitemark />
+            <Box sx={{ display: { xs: "none", md: "flex" } }}>
+              <Button variant="text" color="info" size="small">Features</Button>
+              <Button variant="text" color="info" size="small">Testimonials</Button>
+              <Button variant="text" color="info" size="small">Highlights</Button>
+              <Button variant="text" color="info" size="small">Pricing</Button>
+              <Button variant="text" color="info" size="small" sx={{ minWidth: 0 }}>FAQ</Button>
+              <Button variant="text" color="info" size="small" sx={{ minWidth: 0 }}>Blog</Button>
+            </Box>
           </Box>
 
-          {/* Desktop buttons */}
-          <Box sx={{ display: { xs: 'none', md: 'flex' }, gap: 1, alignItems: 'center' }}>
-            {isAuthenticated ? (
+          {/* Desktop Auth Buttons */}
+          <Box sx={{ display: { xs: "none", md: "flex" }, gap: 1 }}>
+            {loading ? null : isAuthenticated ? (
               <>
-                <Button color="primary" variant="text" onClick={() => window.location.href = "/profile"}>
-                  Profile
-                </Button>
-                <Button color="primary" variant="outlined" onClick={logout}>
-                  Logout
-                </Button>
+                <Button onClick={() => navigate("/profile")}>Profile</Button>
+                <Button onClick={handleLogout}>Logout</Button>
               </>
             ) : (
               <>
-                <Button color="primary" variant="text" onClick={() => window.location.href = "/login"}>
-                  Sign in
-                </Button>
-                <Button color="primary" variant="contained" onClick={() => window.location.href = "/signup"}>
+                <Button onClick={() => navigate("/login")}>Sign in</Button>
+                <Button variant="contained" onClick={() => navigate("/signup")}>
                   Sign up
                 </Button>
               </>
             )}
-            <ColorModeIconDropdown />
           </Box>
 
-          {/* Mobile menu */}
-          <Box sx={{ display: { xs: 'flex', md: 'none' }, gap: 1 }}>
+          {/* Mobile Menu */}
+          <Box sx={{ display: { xs: "flex", md: "none" }, gap: 1 }}>
             <ColorModeIconDropdown size="medium" />
             <IconButton aria-label="Menu button" onClick={toggleDrawer(true)}>
               <MenuIcon />
@@ -80,38 +116,58 @@ export default function AppAppBar() {
               anchor="top"
               open={open}
               onClose={toggleDrawer(false)}
-              PaperProps={{ sx: { top: 'var(--template-frame-height, 0px)' } }}
+              PaperProps={{
+                sx: {
+                  top: "var(--template-frame-height, 0px)",
+                },
+              }}
             >
-              <Box sx={{ p: 2, backgroundColor: 'background.default' }}>
-                <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <Box sx={{ p: 2, backgroundColor: "background.default" }}>
+                <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
                   <IconButton onClick={toggleDrawer(false)}>
                     <CloseRoundedIcon />
                   </IconButton>
                 </Box>
+
+                <MenuItem>Features</MenuItem>
+                <MenuItem>Testimonials</MenuItem>
+                <MenuItem>Highlights</MenuItem>
+                <MenuItem>Pricing</MenuItem>
+                <MenuItem>FAQ</MenuItem>
+                <MenuItem>Blog</MenuItem>
                 <Divider sx={{ my: 3 }} />
-                {isAuthenticated ? (
-                  <>
-                    <MenuItem>
-                      <Button color="primary" fullWidth onClick={() => window.location.href = "/profile"}>
-                        Profile
-                      </Button>
-                    </MenuItem>
-                    <MenuItem>
-                      <Button color="primary" variant="outlined" fullWidth onClick={logout}>
-                        Logout
-                      </Button>
-                    </MenuItem>
-                  </>
+
+                {loading ? null : isAuthenticated ? (
+                  <MenuItem>
+                    <Button
+                      color="primary"
+                      variant="outlined"
+                      fullWidth
+                      onClick={handleLogout}
+                    >
+                      Logout
+                    </Button>
+                  </MenuItem>
                 ) : (
                   <>
                     <MenuItem>
-                      <Button color="primary" variant="text" fullWidth onClick={() => window.location.href = "/login"}>
-                        Sign in
+                      <Button
+                        color="primary"
+                        variant="contained"
+                        fullWidth
+                        onClick={() => navigate("/signup")}
+                      >
+                        Sign up
                       </Button>
                     </MenuItem>
                     <MenuItem>
-                      <Button color="primary" variant="contained" fullWidth onClick={() => window.location.href = "/signup"}>
-                        Sign up
+                      <Button
+                        color="primary"
+                        variant="outlined"
+                        fullWidth
+                        onClick={() => navigate("/login")}
+                      >
+                        Sign in
                       </Button>
                     </MenuItem>
                   </>

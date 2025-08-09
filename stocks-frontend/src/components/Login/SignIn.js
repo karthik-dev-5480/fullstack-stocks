@@ -19,7 +19,8 @@ import ColorModeSelect from '../shared-theme/ColorModeSelect';
 import { GoogleIcon, FacebookIcon } from './components/CustomIcons';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-
+import { useContext } from "react";
+import { AuthContext } from "../../AuthContext";
 
 const Card = styled(MuiCard)(({ theme }) => ({
   display: 'flex',
@@ -70,6 +71,7 @@ export default function SignIn(props) {
   const [passwordError, setPasswordError] = React.useState(false);
   const [passwordErrorMessage, setPasswordErrorMessage] = React.useState('');
   const [open, setOpen] = React.useState(false);
+  const { setIsAuthenticated } = useContext(AuthContext);
 
   const handleClickOpen = () => {
     setOpen(true);
@@ -90,7 +92,7 @@ export default function SignIn(props) {
   
     try {
       const response = await axios.post(
-        'https://fullstack-stocks.onrender.com/auth/login',
+        'http://localhost:8080/auth/login',
         {
           username: email,
           password: password,
@@ -102,7 +104,8 @@ export default function SignIn(props) {
           },
         }
       );
-  
+      console.log('Cookies:', document.cookie);
+      setIsAuthenticated(true);
       // ✅ Cookie is set by backend, no need to manually handle token
       navigate('/'); // Redirect to home/dashboard
   

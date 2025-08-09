@@ -16,7 +16,7 @@ import com.stocks.service.AuthService;
 import com.stocks.service.RegisterService;
 import com.stocks.service.TokenBlacklistService;
 import com.stocks.util.JwtUtil;
-
+import org.springframework.beans.factory.annotation.Value;
 
 @RestController
 @RequestMapping("/auth")
@@ -47,14 +47,18 @@ public class AuthController {
     @Autowired
     private TokenBlacklistService tokenBlacklistService;
 
+    @Value("${app.cookie.secure:false}") // default false if not set
+    private boolean cookieSecure;
+
     @PostMapping("/logout")
-    public ResponseEntity<String> logout(@CookieValue(value = "token", required = false) String token) {
+    public ResponseEntity<String> logout(@CookieValue(value = "jwt", required = false) String token) {
         if (token != null) {
             tokenBlacklistService.blacklistToken(token);
         }
-        ResponseCookie deleteCookie = ResponseCookie.from("token", "")
+
+        ResponseCookie deleteCookie = ResponseCookie.from("jwt", "")
             .httpOnly(true)
-            .secure(true)
+            .secure(cookieSecure)   // set based on config
             .path("/")
             .maxAge(0)
             .sameSite("Strict")

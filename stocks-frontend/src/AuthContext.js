@@ -1,43 +1,39 @@
-// src/AuthContext.js
-import React, { createContext, useState, useEffect } from "react";
+import { createContext, useState, useEffect, useCallback } from "react";
 
 export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  // Check if user is logged in when app starts
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const res = await fetch("https://fullstack-stocks.onrender.com/auth/validate", {
-          credentials: "include",
-        });
-        setIsAuthenticated(res.ok);
-      } catch {
-        setIsAuthenticated(false);
-      }
-    };
-    checkAuth();
+  const checkAuth = useCallback(() => {
+    setLoading(true);
+    const token = localStorage.getItem("jwtToken"); // adjust key as needed
+  
+    fetch("http://localhost:8080/auth/validate", {
+      credentials: "include", // send cookies if any
+      headers: {
+        Authorization: token ? `Bearer ${token}` : "",
+      },
+    })
+      .then((res) => setIsAuthenticated(res.ok))
+      .catch(() => setIsAuthenticated(false))
+      .finally(() => setLoading(false));
   }, []);
-
-  const login = () => setIsAuthenticated(true);
-
-  const logout = async () => {
-    try {
-      await fetch("https://fullstack-stocks.onrender.com/auth/logout", {
-        method: "POST",
-        credentials: "include",
-      });
-    } catch (err) {
-      console.error("Logout error:", err);
-    }
-    setIsAuthenticated(false);
-    window.location.href = "/login";
-  };
+  
+  useEffect(() => {
+    checkAuth(); // run once on mount
+  }, [checkAuth]);
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, login, logout }}>
+    <AuthContext.Provider
+      value={{
+        isAuthenticated,
+        setIsAuthenticated,
+        loading,
+        refreshAuth: checkAuth,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

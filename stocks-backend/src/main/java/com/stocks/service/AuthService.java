@@ -3,7 +3,9 @@ package com.stocks.service;
 import com.stocks.dto.AuthRequest;
 import com.stocks.dto.AuthResponse;
 import com.stocks.util.JwtUtil;
+
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -25,6 +27,9 @@ public class AuthService {
     @Autowired
     private UserDetailsService userDetailsService;
 
+    @Autowired
+    private Environment env;
+
     public ResponseEntity<AuthResponse> login(AuthRequest request) {
         try {
             authManager.authenticate(
@@ -37,12 +42,14 @@ public class AuthService {
         UserDetails userDetails = userDetailsService.loadUserByUsername(request.getUsername());
         String token = jwtUtil.generateToken(userDetails);
 
-        // Create secure HttpOnly cookie with JWT
+        // Switch cookie settings based on environment
+        boolean isProd = "prod".equals(env.getProperty("spring.profiles.active"));
+
         ResponseCookie cookie = ResponseCookie.from("jwt", token)
             .httpOnly(true)
-            .secure(true) // Change to false ONLY for local HTTP testing
+            .secure(isProd) // true in prod (HTTPS), false in dev (HTTP)
             .path("/")
-            .sameSite("Strict")
+            .sameSite(isProd ? "None" : "Lax")
             .maxAge(24 * 60 * 60) // 24 hours
             .build();
 

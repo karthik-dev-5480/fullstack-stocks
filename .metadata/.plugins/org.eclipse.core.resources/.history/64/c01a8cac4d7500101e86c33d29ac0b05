@@ -1,0 +1,54 @@
+package com.stocks.service;
+
+import com.stocks.dto.AuthRequest;
+import com.stocks.dto.AuthResponse;
+import com.stocks.util.JwtUtil;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseCookie;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.stereotype.Service;
+
+@Service
+public class AuthService {
+
+    @Autowired
+    private AuthenticationManager authManager;
+
+    @Autowired
+    private JwtUtil jwtUtil;
+
+    @Autowired
+    private UserDetailsService userDetailsService;
+
+    public ResponseEntity<AuthResponse> login(AuthRequest request) {
+        try {
+            authManager.authenticate(
+                new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
+            );
+        } catch (Exception e) {
+            throw new BadCredentialsException("Invalid username or password");
+        }
+
+        UserDetails userDetails = userDetailsService.loadUserByUsername(request.getUsername());
+        String token = jwtUtil.generateToken(userDetails);
+
+        // Create secure HttpOnly cookie with JWT
+        ResponseCookie cookie = ResponseCookie.from("jwt", token)
+            .httpOnly(true)
+            .secure(true) // Change to false ONLY for local HTTP testing
+            .path("/")
+            .sameSite("None")
+            .maxAge(24 * 60 * 60) // 24 hours
+            .build();
+
+        return ResponseEntity
+            .ok()
+            .header("Set-Cookie", cookie.toString())
+            .body(new AuthResponse("Login successful"));
+    }
+}

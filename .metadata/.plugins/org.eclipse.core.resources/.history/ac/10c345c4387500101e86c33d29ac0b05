@@ -1,0 +1,95 @@
+package com.stocks.controller;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.web.bind.annotation.*;
+
+import com.stocks.dto.AuthRequest;
+import com.stocks.dto.AuthResponse;
+import com.stocks.dto.RegisterRequest;
+import com.stocks.model.User;
+import com.stocks.service.AuthService;
+import com.stocks.service.RegisterService;
+import com.stocks.service.TokenBlacklistService;
+import com.stocks.util.JwtUtil;
+import org.springframework.beans.factory.annotation.Value;
+
+@RestController
+@RequestMapping("/auth")
+public class AuthController {
+
+    @Autowired
+    private AuthService authService;
+    
+    @Autowired
+    private JwtUtil jwtUtil;
+    
+    @Autowired
+    private UserDetailsService userDetailsService;
+
+    @PostMapping("/login")
+    public ResponseEntity<AuthResponse> login(@RequestBody AuthRequest request) {
+        System.out.println("in roller");
+        return authService.login(request); // ✅ FIXED: no double wrapping
+    }
+
+    @Autowired
+    private RegisterService registerService;
+
+    @PostMapping("/register")
+    public ResponseEntity<User> register(@RequestBody RegisterRequest request) {
+        return ResponseEntity.ok(registerService.register(request));
+    }
+    @Autowired
+    private TokenBlacklistService tokenBlacklistService;
+
+    @Value("${app.cookie.secure:false}") // default false if not set
+    private boolean cookieSecure;
+
+    @PostMapping("/logout")
+    public ResponseEntity<String> logout(@CookieValue(value = "token", required = false) String token) {
+        if (token != null) {
+            tokenBlacklistService.blacklistToken(token);
+        }
+
+        ResponseCookie deleteCookie = ResponseCookie.from("token", "")
+            .httpOnly(true)
+            .secure(cookieSecure)   // set based on config
+            .path("/")
+            .maxAge(0)
+            .sameSite("Strict")
+            .build();
+
+        return ResponseEntity.ok()
+            .header(HttpHeaders.SET_COOKIE, deleteCookie.toString())
+            .body("Logged out successfully.");
+    }
+    
+    @GetMapping("/validate")
+    public ResponseEntity<String> validateToken(@CookieValue(value = "jwt", required = false) String token) {
+        if (token == null || token.isEmpty()) {
+            return ResponseEntity.status(401).body("No token found. User is not logged in.");
+        }
+
+        if (tokenBlacklistService.isTokenBlacklisted(token)) {
+            return ResponseEntity.status(401).body("Token is blacklisted. Please log in again.");
+        }
+
+        try {
+            String username = jwtUtil.extractUsername(token);
+            UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+
+            if (jwtUtil.validateToken(token, userDetails)) {
+                return ResponseEntity.ok("Token is valid. User is logged in as: " + username);
+            } else {
+                return ResponseEntity.status(401).body("Token is expired or invalid.");
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(401).body("Invalid token: " + e.getMessage());
+        }
+    }
+}
